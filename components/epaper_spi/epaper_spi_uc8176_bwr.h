@@ -27,11 +27,11 @@ class EPaperUC8176BWR : public EPaperBase {
  protected:
   void draw_pixel_at(int x, int y, Color color) override;
   bool transfer_data() override;
-  void power_on() override { this->command(0x04); }             // POWER ON
+  void power_on() override { this->command(0x04); }                        // POWER ON
   void refresh_screen(bool /*partial*/) override { this->command(0x12); }  // DISPLAY REFRESH
   void power_off() override {
     this->cmd_data(0x50, {0xF7});  // VCOM/interval, border floating
-    this->command(0x02);          // POWER OFF
+    this->command(0x02);           // POWER OFF
   }
   void deep_sleep() override { this->cmd_data(0x07, {0xA5}); }  // DEEP SLEEP
 };

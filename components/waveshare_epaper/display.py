@@ -21,42 +21,20 @@ waveshare_epaper_ns = cg.esphome_ns.namespace("waveshare_epaper")
 WaveshareEPaperBase = waveshare_epaper_ns.class_(
     "WaveshareEPaperBase", cg.PollingComponent, spi.SPIDevice, display.DisplayBuffer
 )
-WaveshareEPaper = waveshare_epaper_ns.class_(
-    "WaveshareEPaper", WaveshareEPaperBase
-)
+WaveshareEPaper = waveshare_epaper_ns.class_("WaveshareEPaper", WaveshareEPaperBase)
 WaveshareEPaperBWR = waveshare_epaper_ns.class_(
     "WaveshareEPaperBWR", WaveshareEPaperBase
 )
-E0213A09 = waveshare_epaper_ns.class_(
-    "E0213A09", WaveshareEPaper
-)
-GDEH029A1 = waveshare_epaper_ns.class_(
-    "GDEH029A1", WaveshareEPaper
-)
-GDEM029T94 = waveshare_epaper_ns.class_(
-    "GDEM029T94", WaveshareEPaper
-)
-GDEW029T5D = waveshare_epaper_ns.class_(
-    "GDEW029T5D", WaveshareEPaper
-)
-GDEY029Z95 = waveshare_epaper_ns.class_(
-    "GDEY029Z95", WaveshareEPaper
-)
-GDEW042M01 = waveshare_epaper_ns.class_(
-    "GDEW042M01", WaveshareEPaper
-)
-DEPG0420 = waveshare_epaper_ns.class_(
-    "DEPG0420", WaveshareEPaper
-)
-GDEW042Z15 = waveshare_epaper_ns.class_(
-    "GDEW042Z15", WaveshareEPaper
-)
-GDEY075T7 = waveshare_epaper_ns.class_(
-    "GDEY075T7", WaveshareEPaper
-)
-P750057MF1A = waveshare_epaper_ns.class_(
-    "P750057MF1A", WaveshareEPaper
-)
+E0213A09 = waveshare_epaper_ns.class_("E0213A09", WaveshareEPaper)
+GDEH029A1 = waveshare_epaper_ns.class_("GDEH029A1", WaveshareEPaper)
+GDEM029T94 = waveshare_epaper_ns.class_("GDEM029T94", WaveshareEPaper)
+GDEW029T5D = waveshare_epaper_ns.class_("GDEW029T5D", WaveshareEPaper)
+GDEY029Z95 = waveshare_epaper_ns.class_("GDEY029Z95", WaveshareEPaper)
+GDEW042M01 = waveshare_epaper_ns.class_("GDEW042M01", WaveshareEPaper)
+DEPG0420 = waveshare_epaper_ns.class_("DEPG0420", WaveshareEPaper)
+GDEW042Z15 = waveshare_epaper_ns.class_("GDEW042Z15", WaveshareEPaper)
+GDEY075T7 = waveshare_epaper_ns.class_("GDEY075T7", WaveshareEPaper)
+P750057MF1A = waveshare_epaper_ns.class_("P750057MF1A", WaveshareEPaper)
 
 
 MODELS = {
@@ -75,6 +53,7 @@ MODELS = {
 # Add proper logger
 _LOGGER = logging.getLogger(__name__)
 
+
 def validate_full_update_every_only_types_ac(value):
     if CONF_FULL_UPDATE_EVERY not in value:
         return value
@@ -86,9 +65,11 @@ def validate_full_update_every_only_types_ac(value):
         _LOGGER.warning(
             "The 'full_update_every' option is only officially supported for models: %s. "
             "For model %s, this setting may not work as expected.",
-            ", ".join(full_models), value[CONF_MODEL]
+            ", ".join(full_models),
+            value[CONF_MODEL],
         )
     return value
+
 
 CONFIG_SCHEMA = cv.All(
     display.FULL_DISPLAY_SCHEMA.extend(
@@ -114,6 +95,7 @@ CONFIG_SCHEMA = cv.All(
 FINAL_VALIDATE_SCHEMA = spi.final_validate_device_schema(
     "waveshare_epaper", require_miso=False, require_mosi=True
 )
+
 
 async def to_code(config):
     model_type, model = MODELS[config[CONF_MODEL]]

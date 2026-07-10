@@ -19,10 +19,17 @@ class SSD1683BWR(RequiredPinsModel):
         # SWRESET (0x12) is issued in reset(); the FSM waits for idle before this
         # sequence runs. The RAM window is set by the driver (set_ram_area_).
         return (
-            (0x01, (height - 1) & 0xFF, (height - 1) >> 8, 0x00),  # driver output control
+            (
+                0x01,
+                (height - 1) & 0xFF,
+                (height - 1) >> 8,
+                0x00,
+            ),  # driver output control
             (0x3C, 0x05),  # border waveform
             (0x18, 0x80),  # built-in temperature sensor
         )
 
 
-SSD1683BWR("DEPG0420", width=400, height=300, data_rate="4MHz", minimum_update_interval="20s")
+SSD1683BWR(
+    "DEPG0420", width=400, height=300, data_rate="4MHz", minimum_update_interval="20s"
+)

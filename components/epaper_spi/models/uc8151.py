@@ -64,8 +64,12 @@ class UC8151(RequiredPinsModel):
             (0x24, *_LUT_BB),
         )
         flat = flatten_sequence(partial)
-        arr = cg.static_const_array(ID(config[CONF_INIT_SEQUENCE_ID].id + "_partial", type=cg.uint8), flat)
+        arr = cg.static_const_array(
+            ID(config[CONF_INIT_SEQUENCE_ID].id + "_partial", type=cg.uint8), flat
+        )
         return (arr, len(flat))
 
 
-UC8151("GDEW029T5D", width=128, height=296, data_rate="2MHz", minimum_update_interval="1s")
+UC8151(
+    "GDEW029T5D", width=128, height=296, data_rate="2MHz", minimum_update_interval="1s"
+)

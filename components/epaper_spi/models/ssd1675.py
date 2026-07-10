@@ -19,7 +19,12 @@ class SSD1675(LutModel):
         return (
             (0x74, 0x54),  # set analog block control
             (0x7E, 0x3B),  # set digital block control
-            (0x01, (height - 1) & 0xFF, (height - 1) >> 8, 0x00),  # driver output control
+            (
+                0x01,
+                (height - 1) & 0xFF,
+                (height - 1) >> 8,
+                0x00,
+            ),  # driver output control
             (0x3C, 0x03),  # border waveform
             (0x2C, 0x70),  # VCOM voltage
             (0x03, 0x15),  # gate driving voltage (19V)

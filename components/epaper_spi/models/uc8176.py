@@ -32,7 +32,13 @@ class UC8176Mono(RequiredPinsModel):
         width, height = self.get_dimensions(config)
         return (
             (0x00, 0x1F, 0x0D),  # panel setting (KW, LUT from OTP)
-            (0x61, (width >> 8) & 0xFF, width & 0xFF, (height >> 8) & 0xFF, height & 0xFF),  # TRES (resolution)
+            (
+                0x61,
+                (width >> 8) & 0xFF,
+                width & 0xFF,
+                (height >> 8) & 0xFF,
+                height & 0xFF,
+            ),  # TRES (resolution)
             (0x50, 0x97),  # VCOM and data interval setting
         )
 
@@ -43,7 +49,13 @@ class UC8176Mono(RequiredPinsModel):
             (0x06, 0x17, 0x17, 0x17),  # booster soft start
             (0x00, 0x3F),  # panel setting (LUT from register)
             (0x30, 0x3A),  # PLL control
-            (0x61, (width >> 8) & 0xFF, width & 0xFF, (height >> 8) & 0xFF, height & 0xFF),  # TRES (resolution)
+            (
+                0x61,
+                (width >> 8) & 0xFF,
+                width & 0xFF,
+                (height >> 8) & 0xFF,
+                height & 0xFF,
+            ),  # TRES (resolution)
             (0x82, 0x1A),  # VCOM DC setting
             (0x50, 0xD7),  # VCOM/interval, border floating
             (0x20, *_LUT_VCOM),
@@ -53,7 +65,9 @@ class UC8176Mono(RequiredPinsModel):
             (0x24, *_LUT_BB),
         )
         flat = flatten_sequence(partial)
-        arr = cg.static_const_array(ID(config[CONF_INIT_SEQUENCE_ID].id + "_partial", type=cg.uint8), flat)
+        arr = cg.static_const_array(
+            ID(config[CONF_INIT_SEQUENCE_ID].id + "_partial", type=cg.uint8), flat
+        )
         return (arr, len(flat))
 
 
@@ -70,5 +84,9 @@ class UC8176BWR(RequiredPinsModel):
         )
 
 
-UC8176Mono("GDEW042M01", width=400, height=300, data_rate="2MHz", minimum_update_interval="1s")
-UC8176BWR("GDEW042Z15", width=400, height=300, data_rate="2MHz", minimum_update_interval="30s")
+UC8176Mono(
+    "GDEW042M01", width=400, height=300, data_rate="2MHz", minimum_update_interval="1s"
+)
+UC8176BWR(
+    "GDEW042Z15", width=400, height=300, data_rate="2MHz", minimum_update_interval="30s"
+)

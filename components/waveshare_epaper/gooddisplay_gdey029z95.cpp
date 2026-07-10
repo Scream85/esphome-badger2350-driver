@@ -20,9 +20,7 @@ int GDEY029Z95::get_height_internal() { return HEIGHT; }
 
 uint32_t GDEY029Z95::idle_timeout_() { return IDLE_TIMEOUT; }
 
-void GDEY029Z95::set_full_update_every(uint32_t full_update_every) {
-  this->full_update_every_ = full_update_every;
-}
+void GDEY029Z95::set_full_update_every(uint32_t full_update_every) { this->full_update_every_ = full_update_every; }
 
 void GDEY029Z95::full_refresh() {
   this->at_update_ = 0;
@@ -32,7 +30,8 @@ void GDEY029Z95::full_refresh() {
 void GDEY029Z95::initialize() {
 #ifdef USE_ESP32
   esp_reset_reason_t reason = esp_reset_reason();
-  if (reason == ESP_RST_EXT) this->at_update_ = 0;
+  if (reason == ESP_RST_EXT)
+    this->at_update_ = 0;
 #endif
 }
 
@@ -103,7 +102,8 @@ void GDEY029Z95::init_display_() {
     initial_ = true;
   }
 
-  if (hibernating_) reset_();
+  if (hibernating_)
+    reset_();
 
   this->wait_until_idle_();
   this->command(0x12);  // SWRESET
@@ -153,7 +153,8 @@ void GDEY029Z95::reset_() {
 }
 
 void GDEY029Z95::deep_sleep() {
-  if (hibernating_) return;
+  if (hibernating_)
+    return;
 
   // power off
   this->command(0x22);

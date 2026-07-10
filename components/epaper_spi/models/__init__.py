@@ -100,9 +100,13 @@ class LutModel(RequiredPinsModel):
         from ..display import CONF_INIT_SEQUENCE_ID
 
         base = config[CONF_INIT_SEQUENCE_ID].id
-        lut_full = cg.static_const_array(ID(base + "_lut_full", type=cg.uint8), self.lut_full)
+        lut_full = cg.static_const_array(
+            ID(base + "_lut_full", type=cg.uint8), self.lut_full
+        )
         if self.lut_partial:
-            lut_partial = cg.static_const_array(ID(base + "_lut_partial", type=cg.uint8), self.lut_partial)
+            lut_partial = cg.static_const_array(
+                ID(base + "_lut_partial", type=cg.uint8), self.lut_partial
+            )
         else:
             lut_partial = cg.nullptr
         return (lut_full, len(self.lut_full), lut_partial, len(self.lut_partial))

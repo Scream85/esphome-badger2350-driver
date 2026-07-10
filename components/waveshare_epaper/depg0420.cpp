@@ -21,9 +21,7 @@ int DEPG0420::get_height_internal() { return HEIGHT; }
 
 uint32_t DEPG0420::idle_timeout_() { return IDLE_TIMEOUT; }
 
-void DEPG0420::set_full_update_every(uint32_t full_update_every) {
-  this->full_update_every_ = full_update_every;
-}
+void DEPG0420::set_full_update_every(uint32_t full_update_every) { this->full_update_every_ = full_update_every; }
 
 void DEPG0420::full_refresh() {
   this->at_update_ = 0;
@@ -33,7 +31,8 @@ void DEPG0420::full_refresh() {
 void DEPG0420::initialize() {
 #ifdef USE_ESP32
   esp_reset_reason_t reason = esp_reset_reason();
-  if (reason == ESP_RST_EXT) this->at_update_ = 0;
+  if (reason == ESP_RST_EXT)
+    this->at_update_ = 0;
 #endif
 }
 
@@ -97,7 +96,8 @@ void DEPG0420::init_display_() {
     initial_ = true;
   }
 
-  if (hibernating_) reset_();
+  if (hibernating_)
+    reset_();
 
   this->command(0x12);  // SWRESET
   delay(10);            // 4ms meaured
@@ -146,7 +146,8 @@ void DEPG0420::reset_() {
 }
 
 void DEPG0420::deep_sleep() {
-  if (hibernating_) return;
+  if (hibernating_)
+    return;
 
   // power off
   this->command(0x22);

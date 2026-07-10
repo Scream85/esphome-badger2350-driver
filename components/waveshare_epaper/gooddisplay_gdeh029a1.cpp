@@ -11,15 +11,13 @@ namespace esphome {
 namespace waveshare_epaper {
 const char *const GDEH029A1::TAG = "gdeh029a1";
 
-const uint8_t GDEH029A1::LUT_DATA_FULL[] = {
-    0x50, 0xAA, 0x55, 0xAA, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xFF, 0xFF, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t GDEH029A1::LUT_DATA_FULL[] = {0x50, 0xAA, 0x55, 0xAA, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0xFF, 0xFF, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-const uint8_t GDEH029A1::LUT_DATA_PART[] = {
-    0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x13, 0x14, 0x44, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t GDEH029A1::LUT_DATA_PART[] = {0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x13, 0x14, 0x44, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 #ifdef USE_ESP32
 RTC_DATA_ATTR uint32_t GDEH029A1::at_update_ = 0;
@@ -31,9 +29,7 @@ int GDEH029A1::get_height_internal() { return HEIGHT; }
 
 uint32_t GDEH029A1::idle_timeout_() { return IDLE_TIMEOUT; }
 
-void GDEH029A1::set_full_update_every(uint32_t full_update_every) {
-  this->full_update_every_ = full_update_every;
-}
+void GDEH029A1::set_full_update_every(uint32_t full_update_every) { this->full_update_every_ = full_update_every; }
 
 void GDEH029A1::full_refresh() {
   this->at_update_ = 0;
@@ -43,7 +39,8 @@ void GDEH029A1::full_refresh() {
 void GDEH029A1::initialize() {
 #ifdef USE_ESP32
   esp_reset_reason_t reason = esp_reset_reason();
-  if (reason == ESP_RST_EXT) this->at_update_ = 0;
+  if (reason == ESP_RST_EXT)
+    this->at_update_ = 0;
 #endif
 }
 
@@ -87,7 +84,8 @@ void GDEH029A1::init_display_() {
     initial_ = true;
   }
 
-  if (hibernating_) reset_();
+  if (hibernating_)
+    reset_();
 
   this->command(0x01);  // Panel configuration, Gate selection
   this->data((HEIGHT - 1) % 256);
@@ -121,8 +119,7 @@ void GDEH029A1::reset_() {
   this->wait_until_idle_();
 }
 
-void GDEH029A1::setPartialRamArea_(uint16_t x, uint16_t y, uint16_t w,
-                                   uint16_t h) {
+void GDEH029A1::setPartialRamArea_(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
   this->command(0x11);  // set ram entry mode
   this->data(0x03);     // x increase, y increase : normal mode
 
@@ -145,7 +142,8 @@ void GDEH029A1::setPartialRamArea_(uint16_t x, uint16_t y, uint16_t w,
 }
 
 void GDEH029A1::deep_sleep() {
-  if (hibernating_) return;
+  if (hibernating_)
+    return;
 
   // power off
   this->command(0x22);

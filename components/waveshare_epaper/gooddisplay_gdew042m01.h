@@ -42,8 +42,7 @@ class GDEW042M01 : public WaveshareEPaper {
 
   void write_lut_();
 
-  static const uint8_t LUT_VCOM1_PARTIAL[], LUT_WW1_PARTIAL[],
-      LUT_BW1_PARTIAL[], LUT_WB1_PARTIAL[], LUT_BB1_PARTIAL[];
+  static const uint8_t LUT_VCOM1_PARTIAL[], LUT_WW1_PARTIAL[], LUT_BW1_PARTIAL[], LUT_WB1_PARTIAL[], LUT_BB1_PARTIAL[];
 
   uint8_t oldData[WIDTH * HEIGHT / 8];
 

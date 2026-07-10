@@ -5,7 +5,7 @@
 namespace esphome::epaper_spi {
 
 static bool is_red(Color color) {
-  return (color.red > 0 && color.green == 0 && color.blue == 0) ||   // red
+  return (color.red > 0 && color.green == 0 && color.blue == 0) ||     // red
          (color.red == 255 && color.green == 255 && color.blue == 0);  // yellow -> red
 }
 

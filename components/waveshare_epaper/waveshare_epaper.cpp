@@ -26,9 +26,7 @@ void WaveshareEPaperBase::setup_pins_() {
 
   this->reset_();
 }
-float WaveshareEPaperBase::get_setup_priority() const {
-  return setup_priority::PROCESSOR;
-}
+float WaveshareEPaperBase::get_setup_priority() const { return setup_priority::PROCESSOR; }
 void WaveshareEPaperBase::command(uint8_t value) {
   this->start_command_();
   this->write_byte(value);
@@ -51,8 +49,7 @@ void WaveshareEPaperBase::cmd_data(const uint8_t *c_data, size_t length) {
   this->disable();
 }
 
-void WaveshareEPaperBase::cmd_data(const uint8_t cmd, const uint8_t *c_data,
-                                   size_t length) {
+void WaveshareEPaperBase::cmd_data(const uint8_t cmd, const uint8_t *c_data, size_t length) {
   this->dc_pin_->digital_write(false);
   this->enable();
   this->write_byte(cmd);
@@ -61,15 +58,15 @@ void WaveshareEPaperBase::cmd_data(const uint8_t cmd, const uint8_t *c_data,
   this->write_array(c_data, length);
 #else
   unsigned int i;
-  for (i = 0; i < length; i++) this->data(c_data[i]);
+  for (i = 0; i < length; i++)
+    this->data(c_data[i]);
 #endif
   this->disable();
 }
 
 bool WaveshareEPaperBase::wait_until_idle_() {
   auto is_busy = [this]() -> bool {
-    return this->is_busy_pin_inverted_() ? !this->busy_pin_->digital_read()
-                                         : this->busy_pin_->digital_read();
+    return this->is_busy_pin_inverted_() ? !this->busy_pin_->digital_read() : this->busy_pin_->digital_read();
   };
 
   if (this->busy_pin_ == nullptr || !is_busy()) {
@@ -98,10 +95,8 @@ void WaveshareEPaper::fill(Color color) {
   for (uint32_t i = 0; i < this->get_buffer_length_(); i++)
     this->buffer_[i] = fill;
 }
-void HOT WaveshareEPaper::draw_absolute_pixel_internal(int x, int y,
-                                                       Color color) {
-  if (x >= this->get_width_internal() || y >= this->get_height_internal() ||
-      x < 0 || y < 0)
+void HOT WaveshareEPaper::draw_absolute_pixel_internal(int x, int y, Color color) {
+  if (x >= this->get_width_internal() || y >= this->get_height_internal() || x < 0 || y < 0)
     return;
 
   const uint32_t pos = (x + y * this->get_width_controller()) / 8u;
@@ -124,10 +119,8 @@ uint32_t WaveshareEPaperBWR::get_buffer_length_() {
 void WaveshareEPaperBWR::fill(Color color) {
   this->filled_rectangle(0, 0, this->get_width(), this->get_height(), color);
 }
-void HOT WaveshareEPaperBWR::draw_absolute_pixel_internal(int x, int y,
-                                                          Color color) {
-  if (x >= this->get_width_internal() || y >= this->get_height_internal() ||
-      x < 0 || y < 0)
+void HOT WaveshareEPaperBWR::draw_absolute_pixel_internal(int x, int y, Color color) {
+  if (x >= this->get_width_internal() || y >= this->get_height_internal() || x < 0 || y < 0)
     return;
 
   const uint32_t buf_half_len = this->get_buffer_length_() / 2u;
@@ -142,9 +135,9 @@ void HOT WaveshareEPaperBWR::draw_absolute_pixel_internal(int x, int y,
   }
 
   // draw red pixels only, if the color contains red only
-  if (((color.red > 0) && (color.green == 0) && (color.blue == 0))) { // red
+  if (((color.red > 0) && (color.green == 0) && (color.blue == 0))) {  // red
     this->buffer_[pos + buf_half_len] |= 0x80 >> subpos;
-  } else if (((color.red == 255) && (color.green == 255) && (color.blue == 0))) { // yellow
+  } else if (((color.red == 255) && (color.green == 255) && (color.blue == 0))) {  // yellow
     this->buffer_[pos + buf_half_len] |= 0x80 >> subpos;
   } else {
     this->buffer_[pos + buf_half_len] &= ~(0x80 >> subpos);

@@ -22,9 +22,7 @@ int P750057MF1A::get_height_internal() { return HEIGHT; }
 
 uint32_t P750057MF1A::idle_timeout_() { return IDLE_TIMEOUT; }
 
-void P750057MF1A::set_full_update_every(uint32_t full_update_every) {
-  this->full_update_every_ = full_update_every;
-}
+void P750057MF1A::set_full_update_every(uint32_t full_update_every) { this->full_update_every_ = full_update_every; }
 
 void P750057MF1A::full_refresh() {
   this->at_update_ = 0;
@@ -34,7 +32,8 @@ void P750057MF1A::full_refresh() {
 void P750057MF1A::initialize() {
 #ifdef USE_ESP32
   esp_reset_reason_t reason = esp_reset_reason();
-  if (reason == ESP_RST_EXT) this->at_update_ = 0;
+  if (reason == ESP_RST_EXT)
+    this->at_update_ = 0;
 #endif
 }
 
@@ -58,8 +57,8 @@ void P750057MF1A::display() {
   this->write_array(this->buffer_ + buf_len_half, buf_len_half);
   this->end_data_();
 
-  this->command(0x12);  // DISPLAY REFRESH
-  delay(100);           //!!!The delay here is necessary, 200uS at least!!!
+  this->command(0x12);            // DISPLAY REFRESH
+  delay(100);                     //!!!The delay here is necessary, 200uS at least!!!
   if (!this->wait_until_idle_())  // waiting for the electronic paper IC to
                                   // release the idle signal
   {
@@ -79,7 +78,8 @@ void P750057MF1A::init_display_(RefreshMode mode) {
     initial_ = true;
   }
 
-  if (hibernating_) reset_();  // Electronic paper IC reset
+  if (hibernating_)
+    reset_();  // Electronic paper IC reset
 
   this->wait_until_idle_();
 
@@ -158,7 +158,8 @@ void P750057MF1A::reset_() {
 }
 
 void P750057MF1A::deep_sleep() {
-  if (hibernating_) return;
+  if (hibernating_)
+    return;
 
   this->command(0x50);  // VCOM AND DATA INTERVAL SETTING
   this->data(0xf7);     // WBmode:VBDF 17|D7 VBDW 97 VBDB 57    WBRmode:VBDF F7

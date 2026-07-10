@@ -19,7 +19,12 @@ class SSD1608(LutModel):
     def get_init_sequence(self, config):
         _, height = self.get_dimensions(config)
         return (
-            (0x01, (height - 1) & 0xFF, (height - 1) >> 8, 0x00),  # driver output control
+            (
+                0x01,
+                (height - 1) & 0xFF,
+                (height - 1) >> 8,
+                0x00,
+            ),  # driver output control
             (0x0C, 0xD7, 0xD6, 0x9D),  # booster soft start
             (0x2C, 0xA8),  # VCOM setting
             (0x3A, 0x1A),  # dummy line

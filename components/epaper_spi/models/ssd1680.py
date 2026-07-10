@@ -21,14 +21,21 @@ class SSD1680(RequiredPinsModel):
 
     def get_constructor_args(self, config) -> tuple:
         base = config[CONF_INIT_SEQUENCE_ID].id
-        lut_partial = cg.static_const_array(ID(base + "_lut_partial", type=cg.uint8), self.lut_partial)
+        lut_partial = cg.static_const_array(
+            ID(base + "_lut_partial", type=cg.uint8), self.lut_partial
+        )
         return (lut_partial, len(self.lut_partial))
 
     def get_init_sequence(self, config):
         _, height = self.get_dimensions(config)
         # SWRESET (0x12) is issued in reset(); the FSM waits for idle before this.
         return (
-            (0x01, (height - 1) & 0xFF, (height - 1) >> 8, 0x00),  # driver output control
+            (
+                0x01,
+                (height - 1) & 0xFF,
+                (height - 1) >> 8,
+                0x00,
+            ),  # driver output control
             (0x3C, 0x05),  # border waveform
             (0x21, 0x00, 0x80),  # display update control
             (0x18, 0x80),  # built-in temperature sensor
@@ -74,10 +81,17 @@ class SSD1680BWR(RequiredPinsModel):
         _, height = self.get_dimensions(config)
         # SWRESET (0x12) is issued in reset(); the RAM window is set by the driver.
         return (
-            (0x01, (height - 1) & 0xFF, (height - 1) >> 8, 0x00),  # driver output control
+            (
+                0x01,
+                (height - 1) & 0xFF,
+                (height - 1) >> 8,
+                0x00,
+            ),  # driver output control
             (0x3C, 0x05),  # border waveform
             (0x18, 0x80),  # built-in temperature sensor
         )
 
 
-SSD1680BWR("GDEY029Z95", width=128, height=296, data_rate="4MHz", minimum_update_interval="20s")
+SSD1680BWR(
+    "GDEY029Z95", width=128, height=296, data_rate="4MHz", minimum_update_interval="20s"
+)

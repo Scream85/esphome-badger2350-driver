@@ -38,8 +38,8 @@ void GDEW042Z15::display() {
     this->write_byte(~this->buffer_[i]);
   this->end_data_();
 
-  this->command(0x12);  // DISPLAY REFRESH
-  delay(100);           //!!!The delay here is necessary, 200uS at least!!!
+  this->command(0x12);            // DISPLAY REFRESH
+  delay(100);                     //!!!The delay here is necessary, 200uS at least!!!
   if (!this->wait_until_idle_())  // waiting for the electronic paper IC to
                                   // release the idle signal
   {
@@ -58,7 +58,8 @@ void GDEW042Z15::init_display_() {
     initial_ = true;
   }
 
-  if (hibernating_) reset_();  // Electronic paper IC reset
+  if (hibernating_)
+    reset_();  // Electronic paper IC reset
 
   this->command(0x06);  // boost soft start
   this->data(0x17);     // A
@@ -90,7 +91,8 @@ void GDEW042Z15::reset_() {
 }
 
 void GDEW042Z15::deep_sleep() {
-  if (hibernating_) return;
+  if (hibernating_)
+    return;
 
   this->command(0x50);  // VCOM AND DATA INTERVAL SETTING
   this->data(0xf7);     // WBmode:VBDF 17|D7 VBDW 97 VBDB 57    WBRmode:VBDF F7

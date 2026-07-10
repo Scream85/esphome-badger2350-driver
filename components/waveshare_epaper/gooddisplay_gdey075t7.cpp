@@ -16,9 +16,7 @@ int GDEY075T7::get_height_internal() { return HEIGHT; }
 
 uint32_t GDEY075T7::idle_timeout_() { return IDLE_TIMEOUT; }
 
-void GDEY075T7::set_full_update_every(uint32_t full_update_every) {
-  this->full_update_every_ = full_update_every;
-}
+void GDEY075T7::set_full_update_every(uint32_t full_update_every) { this->full_update_every_ = full_update_every; }
 
 void GDEY075T7::full_refresh() {
   this->at_update_ = 0;
@@ -234,8 +232,8 @@ bool GDEY075T7::write_partial_() {
 }
 
 bool GDEY075T7::refresh_() {
-  this->command(0x12);  // DISPLAY update
-  delay(1);             //!!!The delay here is necessary, 200uS at least!!!
+  this->command(0x12);              // DISPLAY update
+  delay(1);                         //!!!The delay here is necessary, 200uS at least!!!
   if (!this->wait_until_idle_()) {  // waiting for the electronic paper IC to
                                     // release the idle signal
     this->status_set_warning();

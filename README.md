@@ -78,23 +78,6 @@ Drawing conventions (differ from `waveshare_epaper`):
 - **Busy polarity is built into the driver** — do **not** set
   `busy_pin: { inverted: true }` in YAML.
 
-### Controller ICs & datasheets
-
-| IC | Vendor | Panels | Busy | Notes |
-|---|---|---|---|---|
-| UC8179 | UltraChip | gdey075t7, p750057-mf1-a | active-LOW | `0x10`/`0x13` RAM, `0x50` DDX polarity, `0xE5` fast waveform |
-| UC8176 (IL0398) | UltraChip | gdew042m01, gdew042z15 | active-LOW | UC81xx; register LUTs `0x20`-`0x24`, partial window `0x90`/`0x91`/`0x92` |
-| UC8151D | UltraChip | gdew029t5d | active-LOW | UC81xx; register LUTs `0x20`-`0x24` |
-| SSD1608 (IL3820) | Solomon Systech | gdeh029a1 | active-HIGH | host LUT via `0x32` |
-| SSD1675A (IL3897) | Solomon Systech | e0213a09 | active-HIGH | host LUT via `0x32`; copies frame to OLD bank `0x26` |
-| SSD1680 | Solomon Systech | gdem029t94, gdey029z95 | active-HIGH | full = OTP (`0x22=0xF7`), partial = host LUT (`0x22=0xCC`) |
-| SSD1683 | Solomon Systech | depg0420 | active-HIGH | BWR planes `0x24`/`0x26`, fast = `0x1A`+`0x91`/`0xC7` |
-
-Datasheets referenced during this port (UltraChip / Solomon Systech, obtained
-from the panel vendor): `UC8179`, `UC8176`, `UC8151D`, `SSD1608`, `SSD1675A`,
-`SSD1680`, `SSD1683`, plus the Good Display panel specs (e.g. `GDEY075T7`,
-`GDEM029T94`) and A32 Arduino demo bundles (`A32-GDEY075T7`, `A32-GDEM029T94`).
-
 ## `waveshare_epaper` (classic driver)
 
 <details>

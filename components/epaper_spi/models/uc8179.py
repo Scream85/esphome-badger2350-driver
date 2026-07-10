@@ -19,7 +19,13 @@ class UC8179Mono(RequiredPinsModel):
         width, height = self.get_dimensions(config)
         return (
             (0x00, 0x1F),  # PANEL SETTING: KW (black/white) mode
-            (0x61, (width >> 8) & 0xFF, width & 0xFF, (height >> 8) & 0xFF, height & 0xFF),  # TRES (resolution)
+            (
+                0x61,
+                (width >> 8) & 0xFF,
+                width & 0xFF,
+                (height >> 8) & 0xFF,
+                height & 0xFF,
+            ),  # TRES (resolution)
             (0x15, 0x00),  # DUAL SPI (disabled)
             (0x50, 0x10, 0x07),  # VCOM AND DATA INTERVAL SETTING
             (0x60, 0x22),  # TCON SETTING
@@ -34,12 +40,26 @@ class UC8179BWR(RequiredPinsModel):
         width, height = self.get_dimensions(config)
         return (
             (0x00, 0x0F),  # PANEL SETTING: KWR (black/white/red) mode
-            (0x61, (width >> 8) & 0xFF, width & 0xFF, (height >> 8) & 0xFF, height & 0xFF),  # TRES (resolution)
+            (
+                0x61,
+                (width >> 8) & 0xFF,
+                width & 0xFF,
+                (height >> 8) & 0xFF,
+                height & 0xFF,
+            ),  # TRES (resolution)
             (0x15, 0x00),  # DUAL SPI (disabled)
             (0x50, 0x11, 0x07),  # VCOM AND DATA INTERVAL SETTING
             (0x60, 0x22),  # TCON SETTING
         )
 
 
-UC8179Mono("GDEY075T7", width=800, height=480, data_rate="4MHz", minimum_update_interval="10s")
-UC8179BWR("P750057-MF1-A", width=800, height=480, data_rate="4MHz", minimum_update_interval="30s")
+UC8179Mono(
+    "GDEY075T7", width=800, height=480, data_rate="4MHz", minimum_update_interval="10s"
+)
+UC8179BWR(
+    "P750057-MF1-A",
+    width=800,
+    height=480,
+    data_rate="4MHz",
+    minimum_update_interval="30s",
+)
