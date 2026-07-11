@@ -32,7 +32,6 @@ class EPaperUC8179 : public EPaperUC8179Base {
   void setup() override;
   bool initialise(bool partial) override;
   bool transfer_data() override;
-  void power_off() override;  // adds PARTIAL OUT (0x92) after a partial refresh
 
   // Previous frame, used as the differential base for partial updates.
   uint8_t *old_data_{nullptr};

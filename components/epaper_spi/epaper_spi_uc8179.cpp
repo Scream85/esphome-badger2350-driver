@@ -103,15 +103,15 @@ bool HOT EPaperUC8179::transfer_data() {
     this->disable();
   }
 
+  // Leave partial mode once the data is written, so the refresh (0x12) runs
+  // outside the 0x91/0x92 window -- GxEPD2 defaults to this on this panel
+  // ("usePartialUpdateWindow = false; // set false for better image").
+  if (this->partial_) {
+    this->command(0x92);  // PARTIAL OUT
+  }
+
   this->current_data_index_ = 0;
   return true;
-}
-
-void EPaperUC8179::power_off() {
-  if (this->partial_) {
-    this->command(0x92);  // PARTIAL OUT (after the refresh has completed)
-  }
-  EPaperUC8179Base::power_off();  // POWER OFF (0x02)
 }
 
 }  // namespace esphome::epaper_spi

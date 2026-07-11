@@ -224,11 +224,12 @@ bool GDEY075T7::write_partial_() {
   for (uint32_t i = 0; i < len; i++)
     this->old_data_[i] = this->buffer_[i];
 
-  const bool ok = this->refresh_();
+  // Leave partial mode before the refresh, so 0x12 runs outside the 0x91/0x92
+  // window -- GxEPD2 defaults to this on this panel ("usePartialUpdateWindow =
+  // false; // set false for better image").
+  this->command(0x92);
 
-  this->command(0x92);  // exit partial mode AFTER the refresh
-
-  return ok;
+  return this->refresh_();
 }
 
 bool GDEY075T7::refresh_() {
