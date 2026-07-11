@@ -28,8 +28,13 @@ class EPaperUC8179Base : public EPaperBase {
     this->command(0x04);                             // POWER ON
   }
   void refresh_screen(bool /*partial*/) override { this->command(0x12); }  // DISPLAY REFRESH
-  void power_off() override { this->command(0x02); }                       // POWER OFF
-  void deep_sleep() override { this->cmd_data(0x07, {0xA5}); }             // DEEP SLEEP + check code
+  void power_off() override {
+    // Border floating (VBDF) before POWER OFF, per the vendor demo's EPD_DeepSleep:
+    // leaving the border driven during deep sleep greys the bezel over time.
+    this->cmd_data(0x50, {0xF7});
+    this->command(0x02);  // POWER OFF
+  }
+  void deep_sleep() override { this->cmd_data(0x07, {0xA5}); }  // DEEP SLEEP + check code
 };
 
 }  // namespace esphome::epaper_spi
