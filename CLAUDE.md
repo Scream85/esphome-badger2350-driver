@@ -48,15 +48,26 @@ registration for the Badger 2350's exact dimensions.
   driver-output-control command (`0x01`). Border waveform (`0x3C`), display-update-control (`0x21`),
   and temperature-sensor-read (`0x18`) were dropped from the inherited GDEY029T94 sequence — Pimoroni's
   `setup()` doesn't send any of them for this panel.
-- **Known gap: custom waveform not ported.** Pimoroni's driver *always* writes a custom-tuned
-  waveform/LUT before every refresh (`write_luts()`: `WLR`/`EOPT`/`GDVC`/`SDVC`/`WVCOM` commands) and
-  never relies on the SSD1680's built-in OTP default. This repo's `refresh_screen()` still uses the OTP
-  default (`DUC2` mode `0xF7`) for full refreshes. If that produces a visibly wrong or ghosted image
-  (as opposed to no image / a protocol-level failure), porting `write_luts()` is the next step — see
-  `modules/c/ssd1680/ssd1680.cpp` in `pimoroni/badger2350` for the exact bytes.
-- **Vendor's "4-level greyscale" claim is software, not hardware**: achieved by Pimoroni's MicroPython
-  firmware via dithering on top of a genuinely monochrome SSD1680 panel. Not implemented here — this
-  repo drives it as plain 1-bit black/white.
+- **OTP default does not work on this panel — confirmed on real hardware.** The first flash used the
+  SSD1680's built-in OTP waveform (`DUC2` mode `0xF7`) for full refreshes. Logs showed a completely
+  clean, error-free FSM cycle (correct busy-wait timing, no timeout) but the panel never visibly
+  refreshed — this panel's OTP memory apparently has no usable full-refresh waveform, so `0xF7`
+  completes at the protocol level while doing nothing physically.
+- **Fix: ported Pimoroni's custom waveform LUT.** `write_waveform_lut_()` in `epaper_spi_ssd1680.cpp`
+  sends the exact 153-byte LUT (`0x32`) + `EOPT`/`GDVC`/`SDVC`/`WVCOM` from Pimoroni's `write_luts()`,
+  once per full refresh (matching Pimoroni — never cached). The refresh trigger changed from `0x22`
+  mode `0xF7` (OTP) to `BTST` (`0x0C`) + `0x22` mode `0xC7` (use the just-written register LUT), also
+  matching Pimoroni's `update()` exactly. **Not yet confirmed on hardware** — this is the next thing to
+  verify after a flash.
+- **Two RAM planes are written, not one.** Pimoroni writes the framebuffer to both `0x26` ("red"/grey
+  plane) and `0x24` (B/W plane) with *different* bit-threshold extractions of the same greyscale pixel
+  data, which combined with the 5-level LUT above is how the panel's native 4-grey-level hardware mode
+  actually works — this is **not** software dithering, correcting an earlier assumption in this file.
+  `transfer_data()` now writes both planes (tracked via `writing_red_plane_`, since the FSM's
+  `current_data_index_` alone can't distinguish "byte N of plane A" from "byte N of plane B"). Our
+  buffer is already reduced to 1bpp by the time it reaches this driver (no separate grey-plane data
+  available), so both planes get identical data - this should degrade cleanly to solid black/white
+  rather than reproduce true grey, but hasn't been visually confirmed yet.
 
 ## Build / validate / flash
 

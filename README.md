@@ -23,11 +23,13 @@ Get one at [shop.pimoroni.com/products/badger-2350](https://shop.pimoroni.com/pr
 Official firmware/docs: [pimoroni/badger2350](https://github.com/pimoroni/badger2350) ·
 [badgewa.re/docs](https://badgewa.re/docs).
 
-> **Status:** the model registration and driver fixes have not yet been flashed/tested on real
-> hardware. ESPHome's built-in `waveshare_epaper` component was confirmed *not* to work on this panel
-> (wrong controller command set); this driver reuses a real, working SSD1680 implementation, adjusted
-> for the Badger's exact RAM geometry and data-entry-mode byte — but that adjustment itself is still
-> unverified on the device. Test before relying on it.
+> **Status:** in progress. ESPHome's built-in `waveshare_epaper` component was confirmed *not* to work
+> on this panel (wrong controller command set - no image, or an explicit busy-pin timeout). This
+> driver's first flash fixed the RAM geometry/data-entry-mode bugs and ran a completely clean,
+> error-free refresh cycle at the protocol level — but still no visible image, because this panel's
+> OTP memory has no usable full-refresh waveform. The custom waveform LUT from Pimoroni's own driver
+> has now been ported (see `CLAUDE.md`) but **not yet flashed/verified on hardware**. Test before
+> relying on it.
 
 ## Usage
 
@@ -36,7 +38,7 @@ esphome:
   name: badger2350w
   friendly_name: Badger RP2350W
 
-rp2040:
+rp2:
   board: rpipico2w
 
 external_components:

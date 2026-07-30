@@ -17,6 +17,44 @@ void EPaperSSD1680::set_ram_area_() {
   this->cmd_data(0x4F, {0x00, 0x00});
 }
 
+// Full-refresh waveform LUT, ported verbatim from Pimoroni's write_luts()
+// (modules/c/ssd1680/ssd1680.cpp in pimoroni/badger2350), with the runtime
+// `lut_repeat_count` variable (Pimoroni default: 1, "ghost-free but slightly
+// slower") hardcoded at its three positions (marked below) rather than made
+// configurable - this repo is scoped to one panel, one setting.
+static const uint8_t WAVEFORM_LUT[153] = {
+    // clang-format off
+    // Voltage source levels, groups VS L0-L4 (12 bytes each)
+    0x40, 0x68, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // VS L0
+    0xA0, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // VS L1
+    0xA8, 0x65, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // VS L2
+    0xAA, 0x65, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // VS L3
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // VS L4
+    // Phase groups: L0, L1, L2, L3, L4, SR?, Repeat (repeat = lut_repeat_count = 1)
+    0x02, 0x00, 0x00, 0x05, 0x0A, 0x00, 0x01,  // Group0
+    0x19, 0x19, 0x00, 0x02, 0x00, 0x00, 0x01,  // Group1
+    0x05, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x01,  // Group2
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group3 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group4 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group5 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group6 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group7 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group8 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group9 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group10 (unused)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Group11 (unused)
+    0x44, 0x42, 0x22, 0x22, 0x23, 0x32, 0x00, 0x00, 0x00,  // FR, XON config
+    // clang-format on
+};
+
+void EPaperSSD1680::write_waveform_lut_() {
+  this->cmd_data(0x32, WAVEFORM_LUT, sizeof(WAVEFORM_LUT));  // WLR
+  this->cmd_data(0x3F, {0x22});                              // EOPT
+  this->cmd_data(0x03, {0x17});                              // GDVC
+  this->cmd_data(0x04, {0x41, 0xAE, 0x32});                  // SDVC
+  this->cmd_data(0x2C, {0x28});                              // WVCOM
+}
+
 void EPaperSSD1680::send_update_(uint8_t mode) {
   this->cmd_data(0x22, {mode});
   this->command(0x20);
@@ -36,8 +74,18 @@ bool HOT EPaperSSD1680::transfer_data() {
   uint8_t bytes_to_send[MAX_TRANSFER_SIZE];
 
   if (this->current_data_index_ == 0) {
-    this->set_ram_area_();
-    this->command(0x24);  // write B/W RAM
+    if (this->writing_red_plane_) {
+      // Start of a fresh refresh: write the custom waveform LUT once (never
+      // relies on the OTP default - see the class comment in the header),
+      // then the "red"/grey-plane RAM (0x26). Same 1bpp data as the B/W
+      // plane, since our buffer has no separate grey-plane information.
+      this->write_waveform_lut_();
+      this->set_ram_area_();
+      this->command(0x26);
+    } else {
+      this->set_ram_area_();
+      this->command(0x24);  // write B/W RAM
+    }
   }
   this->start_data_();
   while (this->current_data_index_ < frame) {
@@ -54,6 +102,11 @@ bool HOT EPaperSSD1680::transfer_data() {
   }
   this->disable();
   this->current_data_index_ = 0;
+  if (this->writing_red_plane_) {
+    this->writing_red_plane_ = false;
+    return false;  // resume next loop() call to write the B/W plane
+  }
+  this->writing_red_plane_ = true;  // reset for the next refresh
   return true;
 }
 
@@ -62,7 +115,11 @@ void EPaperSSD1680::refresh_screen(bool partial) {
     this->cmd_data(0x32, this->lut_partial_, this->lut_partial_length_);  // host LUT
     this->send_update_(0xCC);
   } else {
-    this->send_update_(0xF7);  // built-in OTP LUT + temperature + display
+    // BTST (booster soft start, no data) + Display Update Control 2 mode
+    // 0xC7 (use the LUT just written via write_waveform_lut_(), not OTP) +
+    // Activate. Matches Pimoroni's update() exactly.
+    this->command(0x0C);  // BTST
+    this->send_update_(0xC7);
   }
 }
 
