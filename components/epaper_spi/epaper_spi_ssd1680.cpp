@@ -62,6 +62,12 @@ void EPaperSSD1680::send_update_(uint8_t mode) {
 
 bool EPaperSSD1680::reset() {
   if (EPaperBase::reset()) {
+    // Pimoroni's reset() waits an additional 10ms after releasing the reset
+    // line (plus a busy_wait()) before sending anything else - our base FSM's
+    // reset_duration_ only covers the LOW pulse, not this post-release
+    // settling time. Without it, SWRESET (and everything that follows) may
+    // be sent before the chip's power-on-reset recovery is complete.
+    delay(10);
     this->command(0x12);  // SWRESET
     return true;
   }
