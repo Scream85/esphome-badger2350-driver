@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-An **ESPHome external-components** repository (published as `github://Scream85/esphome-badger2360-driver`),
+An **ESPHome external-components** repository (published as `github://Scream85/esphome-badger2350-driver`),
 not a standalone app. It is consumed from an ESPHome device YAML via `external_components:`.
 
 This is a **fork of [parkghost/esphome-epaper](https://github.com/parkghost/esphome-epaper)**, trimmed

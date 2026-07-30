@@ -1,4 +1,4 @@
-# esphome-badger2360-driver
+# esphome-badger2350-driver
 
 ![Badger 2350 front](https://badgewa.re/static/images/badger_web_front.png)
 
@@ -40,7 +40,7 @@ rp2040:
   board: rpipico2w
 
 external_components:
-  - source: github://Scream85/esphome-badger2360-driver
+  - source: github://Scream85/esphome-badger2350-driver
     components: [epaper_spi]
 
 spi:
