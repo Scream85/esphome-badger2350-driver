@@ -5,7 +5,12 @@
 namespace esphome::epaper_spi {
 
 void EPaperSSD1680::set_ram_area_() {
-  this->cmd_data(0x11, {0x03});  // data entry mode: x+ y+
+  // x+ y- (0x01), matching Pimoroni's own driver for this exact panel
+  // (modules/c/ssd1680/ssd1680.cpp in pimoroni/badger2350) - the panel's
+  // native RAM scan direction counts Y downward, not upward. Using 0x03
+  // (x+ y+, the value inherited from ESPHome's GDEY029T94 model) would
+  // write the framebuffer vertically flipped relative to native orientation.
+  this->cmd_data(0x11, {0x01});
   this->cmd_data(0x44, {0x00, (uint8_t) ((this->width_ - 1) / 8)});
   this->cmd_data(0x45, {0x00, 0x00, (uint8_t) ((this->height_ - 1) % 256), (uint8_t) ((this->height_ - 1) / 256)});
   this->cmd_data(0x4E, {0x00});

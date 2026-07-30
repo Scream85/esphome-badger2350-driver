@@ -1,146 +1,90 @@
-# ESPHome E-Paper Display Integration
+# esphome-badger2360-driver
 
-This repo provides ESPHome external components for various e-paper displays:
+![Badger 2350 front](https://badgewa.re/static/images/badger_web_front.png)
 
-- **`epaper_spi`** (default) — a port of ESPHome-dev's newer non-blocking
-  `epaper_spi` architecture, organized by controller IC (UC81xx / SSD16xx).
-- **`waveshare_epaper`** (classic) — the original blocking driver style,
-  kept for existing configs (see the collapsed section below).
+ESPHome external component for the **Pimoroni Badger 2350** (RP2350, 264x176 SSD1680 e-paper badge).
 
-## `epaper_spi`
+This is a fork of [parkghost/esphome-epaper](https://github.com/parkghost/esphome-epaper), trimmed down
+to support this one device only. See [`CLAUDE.md`](./CLAUDE.md) for the full history of why this exists,
+what was verified against Pimoroni's own firmware source, and what's still an open gap.
 
-Requires a recent ESPHome (dev / ~2026.6+, which provides `mipi` /
-`split_buffer` / `display.add_metadata`).
+## Hardware specs
 
-### Supported models
+From [pimoroni/badger2350](https://github.com/pimoroni/badger2350) (the device's official repo):
 
-10 Good Display / DKE panels across 8 controller ICs. Each panel is a model
-registration (`models/*.py`) on top of a per-controller C++ driver.
+* 2.7" 264×176 greyscale e-paper display (driven here as 1-bit black/white — see below)
+* RP2350 + 16MB flash + 8MB PSRAM
+* WiFi + Bluetooth 5.2
+* USB-C + 1,000mAh battery
+* User + system buttons
+* Four-zone rear lighting
 
-`✅` = verified on real hardware this way. `compile` = builds and the command
-sequence is a faithful port of the vendor/GxEPD2 reference, but not yet run on
-the physical panel (BWR plane polarity in particular should be confirmed on
-hardware).
+Get one at [shop.pimoroni.com/products/badger-2350](https://shop.pimoroni.com/products/badger-2350).
+Official firmware/docs: [pimoroni/badger2350](https://github.com/pimoroni/badger2350) ·
+[badgewa.re/docs](https://badgewa.re/docs).
 
-| Model | Controller IC | Colour | Res. | Non-full refresh | C++ driver class | Hardware | Vendor / reference |
-|---|---|---|---|---|---|---|---|
-| `e0213a09` | SSD1675A (IL3897) | mono | 104×212 | differential partial | `EPaperSSD1675` | ✅ | [GxEPD2 · GxEPD2_213_B72](https://github.com/ZinggJM/GxEPD2/blob/master/src/epd/GxEPD2_213_B72.cpp) |
-| `gdeh029a1` | SSD1608 (IL3820) | mono | 128×296 | differential partial | `EPaperSSD1608` | ✅ | [GxEPD2 · GxEPD2_290](https://github.com/ZinggJM/GxEPD2/blob/master/src/epd/GxEPD2_290.cpp) |
-| `gdem029t94` | SSD1680 | mono | 128×296 | differential partial | `EPaperSSD1680` | ✅ | [GxEPD2 · GxEPD2_290_T94_V2](https://github.com/ZinggJM/GxEPD2/blob/master/src/epd/GxEPD2_290_T94_V2.cpp) |
-| `gdew029t5d` | UC8151D | mono | 128×296 | differential partial | `EPaperUC8151` | ✅ | [Good Display · product/210](https://www.good-display.com/product/210.html) |
-| `gdey029z95` | SSD1680 | B/W/R | 128×296 | fast | `EPaperSSD1680BWR` | ✅ | [Good Display · product/527](https://www.good-display.com/product/527.html) |
-| `gdew042m01` | UC8176 (IL0398) | mono | 400×300 | differential partial | `EPaperUC8176` | compile | [GxEPD2 · GxEPD2_420_M01](https://github.com/ZinggJM/GxEPD2/blob/master/src/epd/GxEPD2_420_M01.cpp) |
-| `depg0420` | SSD1683 | B/W/R | 400×300 | fast | `EPaperSSD1683` | ✅ | [GxEPD2 · GxEPD2_420c_GDEY042Z98](https://github.com/ZinggJM/GxEPD2/blob/master/src/gdey3c/GxEPD2_420c_GDEY042Z98.cpp) |
-| `gdew042z15` | UC8176 (IL0398) | B/W/R | 400×300 | full only | `EPaperUC8176BWR` | ✅ | [E-Paper Display · productId=322](https://www.e-paper-display.com/products_detail/productId=322.html) |
-| `gdey075t7` | UC8179 | mono | 800×480 | differential partial | `EPaperUC8179` | ✅ | Good Display A32-GDEY075T7 Arduino demo + UC8179 / GDEY075T7 datasheets |
-| `p750057-mf1-a` | UC8179 | B/W/R | 800×480 | fast | `EPaperUC8179BWR` | ✅ | [gooddisplayshare/ESP32epdx · GDEY075Z08](https://github.com/gooddisplayshare/ESP32epdx/tree/main/examples/3-Colors%20(BWR)/7.5/GDEY075Z08) |
+> **Status:** the model registration and driver fixes have not yet been flashed/tested on real
+> hardware. ESPHome's built-in `waveshare_epaper` component was confirmed *not* to work on this panel
+> (wrong controller command set); this driver reuses a real, working SSD1680 implementation, adjusted
+> for the Badger's exact RAM geometry and data-entry-mode byte — but that adjustment itself is still
+> unverified on the device. Test before relying on it.
 
-### Usage
+## Usage
 
 ```yaml
+esphome:
+  name: badger2350w
+  friendly_name: Badger RP2350W
+
+rp2040:
+  board: rpipico2w
+
 external_components:
-  - source: github://parkghost/esphome-epaper
+  - source: github://Scream85/esphome-badger2360-driver
     components: [epaper_spi]
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
 
 font:
   - file: "gfonts://Roboto"
-    id: roboto_36
-    size: 36
-
-spi:
-  clk_pin: GPIO4
-  mosi_pin: GPIO6
+    id: font_small
+    size: 14
 
 display:
   - platform: epaper_spi
-    cs_pin: GPIO0
-    dc_pin: GPIO1
-    busy_pin: GPIO3
-    reset_pin: GPIO2
-    model: gdey075t7
+    model: badger2350
+    cs_pin: GPIO17
+    dc_pin: GPIO20
+    busy_pin: GPIO16
+    reset_pin: GPIO21
     rotation: 270
-    update_interval: 24h
-    full_update_every: 30
-    id: my_display
+    update_interval: 60s
+    id: my_badger_display
     lambda: |-
-      // Colours map by luminance (WYSIWYG): draw ink with a DARK colour.
-      // The default draw colour COLOR_ON is white and would render blank.
-      auto BLACK = Color(0, 0, 0);
-      it.printf(it.get_width()/2, it.get_height()/2, id(roboto_36), BLACK,
-                TextAlign::CENTER, "Hello World!");
+      // Colour is WYSIWYG here (luminance model), unlike ESPHome's classic
+      // waveshare_epaper family: draw ink with a DARK colour, not COLOR_ON
+      // (which is white and would render blank paper).
+      auto ink = Color(0, 0, 0);
+      it.fill(Color(255, 255, 255));
+      it.printf(8, 2, id(font_small), ink, "Hello Badger!");
 ```
 
-Drawing conventions (differ from `waveshare_epaper`):
+Notes (see `CLAUDE.md` for details/citations):
 
-- **Colour is WYSIWYG** (luminance model, unlike `waveshare_epaper`'s
-  `COLOR_ON` = ink): draw ink with `Color(0, 0, 0)`, **not** the default
-  `COLOR_ON`, which is white and renders as blank paper.
-- **Busy polarity is built into the driver** — do **not** set
-  `busy_pin: { inverted: true }` in YAML.
-
-## `waveshare_epaper` (classic driver)
-
-<details>
-<summary>Supported displays and usage for the classic <code>waveshare_epaper</code> component</summary>
-
-### Supported Displays
-
-The following e-paper display models are supported by this component:
-
-| Model         | Size  | Colors | Resolution | Partial Refresh | Fast Refresh | Tested                                        | Useful for                 | Driver IC         |
-|---------------|-------|--------|------------|-----------------|--------------|-----------------------------------------------|----------------------------|-------------------|
-| e0213a09      | 2.13" | B/W    | 212x104    | Y               | N            | E213A09N(HINK-E0213A07-A1)                    |                            | SSD1675A(IL3897)  |
-| gdeh029a1     | 2.9"  | B/W    | 296x128    | Y               | N            | E029A01(E029A01-FPCA-V2.0) / (E029A01-FPC-A1) | Good Display GDEH029A1     | SSD1608(IL3820)   |
-| gdem029t94    | 2.9"  | B/W    | 296x128    | Y               | N            | Waveshare 2.9" SKU-12563 (FPC-7519rev.b)      | Good Display GDEM029T94    | SSD1680           |
-| gdew029t5d    | 2.9"  | B/W    | 296x128    | Y               | N            | WF0290T5(WFT0290CZ10 LW) / (WFT0290CZ10 LP)   | Good Display GDEW029T5D    | UC8151D           |
-| gdey029z95    | 2.9"  | B/W/R  | 296x128    | N               | Y            | (FPC-A005 20.06.15 TRX)                       | Good Display GDEY029Z95    | SSD1680           |
-| gdew042m01    | 4.2"  | B/W    | 400x300    | Y               | N            | WF0420T80CZ35230H(WF0420CZ35 LW)              | Good Display GDEW042M01    | UC8176(IL0398)    |
-| depg0420      | 4.2"  | B/W/R  | 400x300    | N               | Y            | DEPG0420(FPC-190)                             | Good Display GDEY042Z98    | SSD1683           |
-| gdew042z15    | 4.2"  | B/W/R  | 400x300    | N               | N            | WF0420T80CZ15(WFT0420CZ15 LW)                 | Good Display GDEW042Z15    | UC8176(IL0398)    |
-| gdey075t7     | 7.5"  | B/W    | 800x480    | Y               | Y            | GDEY075T7(FPC-C001 21.08.30 HB)               | Good Display GDEY075T7     | UC8179            |
-| p750057-mf1-a | 7.5"  | B/W/R  | 800x480    | N               | Y            | (P750057-MF1-A)                               | Good Display GDEY075Z08    | UC8179            |
-
-### Usage
-
-```yaml
-external_components:
-  - source: github://parkghost/esphome-epaper
-    components: [waveshare_epaper]
-
-font:
-  - file: "gfonts://Roboto"
-    id: roboto_36
-    size: 36
-
-spi:
-  clk_pin: GPIO4
-  mosi_pin: GPIO6
-
-display:
-  - platform: waveshare_epaper
-    cs_pin: GPIO0
-    dc_pin:  GPIO1
-    busy_pin: GPIO3
-    reset_pin: GPIO2
-    model: e0213a09
-    rotation: 270
-    update_interval: 24h
-    full_update_every: 30
-    id: my_display
-    lambda: |-
-      int width = it.get_width();
-      int height = it.get_height();
-      it.printf(width/2, height/2, id(roboto_36), TextAlign::CENTER, "Hello World!");
-```
-
-</details>
-
-## Examples
-
-For examples and configurations, visit the [ESPHome E-Paper Examples](https://github.com/parkghost/esphome-epaper-examples).
+- Model dimensions are registered as the panel's **native** RAM geometry (176x264, portrait) — the
+  264x176 landscape view comes from `rotation: 270`, not from the model's width/height.
+- **Do not** set `busy_pin: { inverted: true }` — busy polarity is built into the driver
+  (active-HIGH, matching the Badger 2350's actual wiring).
+- Only full refreshes are used by default (`full_update_every: 1`); partial-update support exists in
+  the driver but its waveform LUT is a placeholder inherited from an unrelated panel and hasn't been
+  verified for the Badger 2350 — don't enable partial updates until that's addressed.
 
 ## Acknowledgements
 
-- **[ESPHome Waveshare E-Paper Display](https://esphome.io/components/display/waveshare_epaper.html)**: The ESPHome waveshare_epaper component provides the base for integrating e-paper displays with ESPHome, enabling easy configuration and control of supported displays.
-
-- **[GxEPD2](https://github.com/ZinggJM/GxEPD2)**: This library has been instrumental in driving e-paper displays. Its open-source implementation allows for smooth handling of various e-paper models.
+- **[parkghost/esphome-epaper](https://github.com/parkghost/esphome-epaper)**: source of the
+  `epaper_spi` FSM architecture and the original `EPaperSSD1680` driver this fork builds on.
+- **[pimoroni/badger2350](https://github.com/pimoroni/badger2350)**: reference driver
+  (`modules/c/ssd1680/ssd1680.cpp`) used to verify/correct this fork's RAM geometry and data-entry-mode
+  byte against real, shipped hardware behaviour.

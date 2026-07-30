@@ -5,7 +5,9 @@
 namespace esphome::epaper_spi {
 
 /**
- * SSD1680 monochrome e-paper controller (e.g. Good Display GDEM029T94, 128x296).
+ * SSD1680 monochrome e-paper controller, scoped to the Pimoroni Badger 2350
+ * (see models/ssd1680.py for panel-specific notes: native RAM geometry,
+ * OTP-vs-custom-waveform, and citations to Pimoroni's own driver).
  *
  * Buffer: 1 bit per pixel, single plane (bit 1 = white, 0 = black), written to
  * RAM 0x24. Full updates use the controller's built-in OTP waveform (0x22=0xF7);
