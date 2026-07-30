@@ -1,10 +1,19 @@
 #include "epaper_spi_ssd1680.h"
 
 #include <algorithm>
+#include "esphome/core/log.h"
 
 namespace esphome::epaper_spi {
 
+static const char *const TAG = "epaper_spi.ssd1680";
+static constexpr size_t SSD1680_MAX_CMD_LOG_BYTES = 160;
+
 void EPaperSSD1680::write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length) {
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
+  char hex_buf[format_hex_pretty_size(SSD1680_MAX_CMD_LOG_BYTES)];
+  ESP_LOGV(TAG, "Bytewise command: 0x%02X, Length: %d, Data: %s", command, length,
+           format_hex_pretty_to(hex_buf, ptr, std::min(length, SSD1680_MAX_CMD_LOG_BYTES), '.'));
+#endif
   this->dc_pin_->digital_write(false);
   this->enable();
   this->write_byte(command);
