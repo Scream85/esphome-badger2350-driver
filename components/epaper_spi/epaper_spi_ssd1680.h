@@ -43,6 +43,7 @@ class EPaperSSD1680 : public EPaperBase {
 
  protected:
   bool reset() override;
+  bool initialise(bool partial) override;
   bool transfer_data() override;
   void power_on() override {}
   void refresh_screen(bool partial) override;
@@ -56,6 +57,17 @@ class EPaperSSD1680 : public EPaperBase {
   void write_waveform_lut_();
   // 0x22 (display update control) with `mode`, then 0x20 (master activation).
   void send_update_(uint8_t mode);
+  // Command + data, sent one byte at a time instead of via cmd_data()'s bulk
+  // write_array() path. See the class comment for why: live testing on real
+  // hardware proved every command byte in our sequence is correct (manually
+  // replaying just the trigger bytes via a known-good path caused a genuine
+  // ~2s physical refresh), yet ESPHome's driver produced no visible refresh
+  // at all with an identical byte sequence sent via write_array() for any
+  // multi-byte payload. This narrows the fault to that specific transfer
+  // path (suspected Arduino-Pico RP2 SPI library issue with write-only
+  // multi-byte transfers, `transfer(ptr, nullptr, length)`) rather than
+  // anything about the command sequence itself.
+  void write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length);
 
   // Partial-refresh waveform LUT, supplied by the model (panel-specific).
   const uint8_t *lut_partial_;

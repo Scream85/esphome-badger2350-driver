@@ -53,12 +53,26 @@ registration for the Badger 2350's exact dimensions.
   clean, error-free FSM cycle (correct busy-wait timing, no timeout) but the panel never visibly
   refreshed — this panel's OTP memory apparently has no usable full-refresh waveform, so `0xF7`
   completes at the protocol level while doing nothing physically.
-- **Fix: ported Pimoroni's custom waveform LUT.** `write_waveform_lut_()` in `epaper_spi_ssd1680.cpp`
-  sends the exact 153-byte LUT (`0x32`) + `EOPT`/`GDVC`/`SDVC`/`WVCOM` from Pimoroni's `write_luts()`,
-  once per full refresh (matching Pimoroni — never cached). The refresh trigger changed from `0x22`
-  mode `0xF7` (OTP) to `BTST` (`0x0C`) + `0x22` mode `0xC7` (use the just-written register LUT), also
-  matching Pimoroni's `update()` exactly. **Not yet confirmed on hardware** — this is the next thing to
-  verify after a flash.
+- **Ported Pimoroni's custom waveform LUT** (`write_waveform_lut_()`: the 153-byte LUT via `0x32` +
+  `EOPT`/`GDVC`/`SDVC`/`WVCOM`, once per full refresh) and changed the trigger to `BTST` (`0x0C`) +
+  `0x22` mode `0xC7`. Flashed and logged a completely clean protocol trace, matching Pimoroni's bytes
+  exactly — **still no visible refresh.**
+- **Root cause found via live hardware comparison, not log reading.** With the factory MicroPython
+  firmware confirmed working (ruling out panel/wiring/power), connected directly to it over USB
+  (`mpremote`) and used its exposed `ssd1680` module to get ground truth: a real working
+  `SSD1680().update()` asserts BUSY **continuously for ~3.66 seconds**. Our driver's busy-waits were
+  never longer than ~27ms at any step - nowhere close. Manually replaying **our exact trigger bytes**
+  (`0x0C`, `0x22`=`0xC7`, `0x20`) through the factory driver's own `command()` method (bypassing
+  ESPHome entirely) produced a genuine ~2s busy period - proving the command bytes themselves are
+  100% correct. The fault is specifically in how ESPHome transmits multi-byte payloads: every
+  affected command used `cmd_data()`'s bulk `write_array()` path, which for length > 1 goes through
+  the Arduino-Pico RP2 SPI library's write-only `transfer(ptr, nullptr, length)`. Single-byte-or-empty
+  commands (which use a different code path) were already proven fine by the same live test.
+- **Fix: `write_bytewise_()`.** Every command that carries data now sends its payload one byte at a
+  time via `write_byte()` (which takes the same known-good single-byte path proven above), instead of
+  `cmd_data()`'s bulk transfer. This required overriding `initialise()` too, since the base FSM's
+  generic init-sequence replay also goes through `cmd_data()`. **Not yet confirmed on hardware** - this
+  is the next thing to verify after a flash.
 - **Two RAM planes are written, not one.** Pimoroni writes the framebuffer to both `0x26` ("red"/grey
   plane) and `0x24` (B/W plane) with *different* bit-threshold extractions of the same greyscale pixel
   data, which combined with the 5-level LUT above is how the panel's native 4-grey-level hardware mode

@@ -4,17 +4,55 @@
 
 namespace esphome::epaper_spi {
 
+void EPaperSSD1680::write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length) {
+  this->dc_pin_->digital_write(false);
+  this->enable();
+  this->write_byte(command);
+  if (length > 0) {
+    this->dc_pin_->digital_write(true);
+    for (size_t i = 0; i < length; i++)
+      this->write_byte(ptr[i]);
+  }
+  this->disable();
+}
+
+bool EPaperSSD1680::initialise(bool partial) {
+  // Replay the init sequence (from models/ssd1680.py's get_init_sequence())
+  // byte-by-byte via write_bytewise_() instead of EPaperBase's
+  // send_init_sequence_(), which uses cmd_data()'s bulk write_array() path
+  // for any payload longer than 1 byte. See the header comment on
+  // write_bytewise_() for why.
+  size_t index = 0;
+  while (index != this->init_sequence_length_) {
+    const uint8_t cmd = this->init_sequence_[index++];
+    const uint8_t x = this->init_sequence_[index++];
+    if (x == DELAY_FLAG) {
+      delay(cmd);
+      continue;
+    }
+    const uint8_t num_args = x & 0x7F;
+    this->write_bytewise_(cmd, this->init_sequence_ + index, num_args);
+    index += num_args;
+  }
+  return true;
+}
+
 void EPaperSSD1680::set_ram_area_() {
   // x+ y- (0x01), matching Pimoroni's own driver for this exact panel
   // (modules/c/ssd1680/ssd1680.cpp in pimoroni/badger2350) - the panel's
   // native RAM scan direction counts Y downward, not upward. Using 0x03
   // (x+ y+, the value inherited from ESPHome's GDEY029T94 model) would
   // write the framebuffer vertically flipped relative to native orientation.
-  this->cmd_data(0x11, {0x01});
-  this->cmd_data(0x44, {0x00, (uint8_t) ((this->width_ - 1) / 8)});
-  this->cmd_data(0x45, {0x00, 0x00, (uint8_t) ((this->height_ - 1) % 256), (uint8_t) ((this->height_ - 1) / 256)});
-  this->cmd_data(0x4E, {0x00});
-  this->cmd_data(0x4F, {0x00, 0x00});
+  const uint8_t dem[1] = {0x01};
+  this->write_bytewise_(0x11, dem, 1);
+  const uint8_t srx[2] = {0x00, (uint8_t) ((this->width_ - 1) / 8)};
+  this->write_bytewise_(0x44, srx, 2);
+  const uint8_t sry[4] = {0x00, 0x00, (uint8_t) ((this->height_ - 1) % 256), (uint8_t) ((this->height_ - 1) / 256)};
+  this->write_bytewise_(0x45, sry, 4);
+  const uint8_t srxc[1] = {0x00};
+  this->write_bytewise_(0x4E, srxc, 1);
+  const uint8_t sryc[2] = {0x00, 0x00};
+  this->write_bytewise_(0x4F, sryc, 2);
 }
 
 // Full-refresh waveform LUT, ported verbatim from Pimoroni's write_luts()
@@ -48,15 +86,19 @@ static const uint8_t WAVEFORM_LUT[153] = {
 };
 
 void EPaperSSD1680::write_waveform_lut_() {
-  this->cmd_data(0x32, WAVEFORM_LUT, sizeof(WAVEFORM_LUT));  // WLR
-  this->cmd_data(0x3F, {0x22});                              // EOPT
-  this->cmd_data(0x03, {0x17});                              // GDVC
-  this->cmd_data(0x04, {0x41, 0xAE, 0x32});                  // SDVC
-  this->cmd_data(0x2C, {0x28});                              // WVCOM
+  this->write_bytewise_(0x32, WAVEFORM_LUT, sizeof(WAVEFORM_LUT));  // WLR
+  const uint8_t eopt[1] = {0x22};
+  this->write_bytewise_(0x3F, eopt, 1);  // EOPT
+  const uint8_t gdvc[1] = {0x17};
+  this->write_bytewise_(0x03, gdvc, 1);  // GDVC
+  const uint8_t sdvc[3] = {0x41, 0xAE, 0x32};
+  this->write_bytewise_(0x04, sdvc, 3);  // SDVC
+  const uint8_t wvcom[1] = {0x28};
+  this->write_bytewise_(0x2C, wvcom, 1);  // WVCOM
 }
 
 void EPaperSSD1680::send_update_(uint8_t mode) {
-  this->cmd_data(0x22, {mode});
+  this->write_bytewise_(0x22, &mode, 1);
   this->command(0x20);
 }
 
@@ -77,7 +119,6 @@ bool EPaperSSD1680::reset() {
 bool HOT EPaperSSD1680::transfer_data() {
   const uint32_t start_time = millis();
   const size_t frame = this->buffer_length_;
-  uint8_t bytes_to_send[MAX_TRANSFER_SIZE];
 
   if (this->current_data_index_ == 0) {
     if (this->writing_red_plane_) {
@@ -93,13 +134,15 @@ bool HOT EPaperSSD1680::transfer_data() {
       this->command(0x24);  // write B/W RAM
     }
   }
-  this->start_data_();
+  this->dc_pin_->digital_write(true);
+  this->enable();
   while (this->current_data_index_ < frame) {
     const size_t n = std::min(MAX_TRANSFER_SIZE, frame - this->current_data_index_);
-    // split_buffer may be non-contiguous: read element-by-element.
+    // split_buffer may be non-contiguous: read element-by-element. Sent one
+    // byte at a time (not write_array()'s bulk path) - see write_bytewise_()'s
+    // comment in the header for why.
     for (size_t k = 0; k < n; k++)
-      bytes_to_send[k] = this->buffer_[this->current_data_index_ + k];
-    this->write_array(bytes_to_send, n);
+      this->write_byte(this->buffer_[this->current_data_index_ + k]);
     this->current_data_index_ += n;
     if (millis() - start_time > MAX_TRANSFER_TIME) {
       this->disable();
@@ -118,7 +161,7 @@ bool HOT EPaperSSD1680::transfer_data() {
 
 void EPaperSSD1680::refresh_screen(bool partial) {
   if (partial) {
-    this->cmd_data(0x32, this->lut_partial_, this->lut_partial_length_);  // host LUT
+    this->write_bytewise_(0x32, this->lut_partial_, this->lut_partial_length_);  // host LUT
     this->send_update_(0xCC);
   } else {
     // BTST (booster soft start, no data) + Display Update Control 2 mode
@@ -136,15 +179,13 @@ void EPaperSSD1680::power_off() {
   if (this->is_using_partial_update_()) {
     this->set_ram_area_();
     this->command(0x26);
-    this->start_data_();
-    uint8_t bytes_to_send[MAX_TRANSFER_SIZE];
+    this->dc_pin_->digital_write(true);
+    this->enable();
     size_t i = 0;
     while (i < this->buffer_length_) {
       const size_t n = std::min(MAX_TRANSFER_SIZE, this->buffer_length_ - i);
-      // split_buffer may be non-contiguous: read element-by-element.
       for (size_t k = 0; k < n; k++)
-        bytes_to_send[k] = this->buffer_[i + k];
-      this->write_array(bytes_to_send, n);
+        this->write_byte(this->buffer_[i + k]);
       i += n;
     }
     this->disable();
@@ -154,7 +195,8 @@ void EPaperSSD1680::power_off() {
 }
 
 void EPaperSSD1680::deep_sleep() {
-  this->cmd_data(0x10, {0x01});  // enter deep sleep
+  const uint8_t data[1] = {0x01};
+  this->write_bytewise_(0x10, data, 1);
 }
 
 }  // namespace esphome::epaper_spi
