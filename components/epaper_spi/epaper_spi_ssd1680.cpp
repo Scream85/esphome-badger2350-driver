@@ -2,11 +2,41 @@
 
 #include <algorithm>
 #include "esphome/core/log.h"
+#include "esphome/components/spi/spi.h"
+
+#ifdef USE_RP2
+#include <hardware/gpio.h>
+#include <hardware/spi.h>
+#endif
 
 namespace esphome::epaper_spi {
 
 static const char *const TAG = "epaper_spi.ssd1680";
 static constexpr size_t SSD1680_MAX_CMD_LOG_BYTES = 160;
+
+#ifdef USE_RP2
+// This board's e-paper SCK/MOSI pin-out (see models/ssd1680.py) - hardcoded
+// since this repo targets exactly one board.
+static constexpr uint SSD1680_SCK_PIN = 18;
+static constexpr uint SSD1680_MOSI_PIN = 19;
+
+void EPaperSSD1680::raw_spi_setup_() {
+  if (this->raw_spi_ready_)
+    return;
+  // Bypass ESPHome's spi::SPIDevice entirely (both its hardware and
+  // bit-banged software backends were tested extensively and produced the
+  // identical no-refresh symptom on this board - see the repo's CLAUDE.md).
+  // Talk to the RP2 hardware SPI peripheral directly via the Pico SDK, the
+  // same calls Pimoroni's own driver and a raw-SPI mpremote replay both use,
+  // both of which produced a genuine refresh on this exact hardware.
+  spi_init(spi0, 4'000'000);
+  gpio_set_function(SSD1680_SCK_PIN, GPIO_FUNC_SPI);
+  gpio_set_function(SSD1680_MOSI_PIN, GPIO_FUNC_SPI);
+  this->cs_pin_num_ = esphome::spi::Utility::get_pin_no(this->cs_);
+  this->dc_pin_num_ = esphome::spi::Utility::get_pin_no(this->dc_pin_);
+  this->raw_spi_ready_ = true;
+}
+#endif
 
 void EPaperSSD1680::write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length) {
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
@@ -14,6 +44,17 @@ void EPaperSSD1680::write_bytewise_(uint8_t command, const uint8_t *ptr, size_t 
   ESP_LOGV(TAG, "Bytewise command: 0x%02X, Length: %d, Data: %s", command, length,
            format_hex_pretty_to(hex_buf, ptr, std::min(length, SSD1680_MAX_CMD_LOG_BYTES), '.'));
 #endif
+#ifdef USE_RP2
+  this->raw_spi_setup_();
+  gpio_put(this->dc_pin_num_, 0);
+  gpio_put(this->cs_pin_num_, 0);
+  spi_write_blocking(spi0, &command, 1);
+  if (length > 0) {
+    gpio_put(this->dc_pin_num_, 1);
+    spi_write_blocking(spi0, ptr, length);
+  }
+  gpio_put(this->cs_pin_num_, 1);
+#else
   this->dc_pin_->digital_write(false);
   this->enable();
   this->write_byte(command);
@@ -23,6 +64,7 @@ void EPaperSSD1680::write_bytewise_(uint8_t command, const uint8_t *ptr, size_t 
       this->write_byte(ptr[i]);
   }
   this->disable();
+#endif
 }
 
 bool EPaperSSD1680::initialise(bool partial) {
@@ -98,14 +140,8 @@ void EPaperSSD1680::busy_wait_(const char *reason) {
   // Pimoroni's own driver blocks on BUSY after write_luts() and again between
   // setting the DUC2 mode and issuing ADUS (modules/c/ssd1680/ssd1680.cpp,
   // write_luts()'s trailing busy_wait() and update()'s busy_wait() right
-  // before command(ADUS)). Our port dropped both waits - this FSM only waits
-  // for idle on entry to specific states (SHOULD_WAIT), and neither of those
-  // sits between the sub-steps inside transfer_data()/send_update_() where
-  // Pimoroni's driver blocks. If the chip needs that settling time before it
-  // will latch the next command, everything we send after it (RAM writes,
-  // ADUS trigger) can be accepted-but-ignored: correct bytes on the wire,
-  // no error, no real refresh. Cheap to test, so block here instead of
-  // threading this into the non-blocking FSM as new states.
+  // before command(ADUS)). Kept even in the raw-SDK path for parity with
+  // Pimoroni's driver, though it has consistently measured ~0ms in testing.
   uint32_t start = millis();
   while (!this->is_idle_()) {
     if (millis() - start > 2000) {
@@ -131,7 +167,7 @@ void EPaperSSD1680::write_waveform_lut_() {
 void EPaperSSD1680::send_update_(uint8_t mode) {
   this->write_bytewise_(0x22, &mode, 1);
   this->busy_wait_("send_update_ mode->activate");
-  this->command(0x20);
+  this->write_bytewise_(0x20);  // ADUS
 }
 
 bool EPaperSSD1680::reset() {
@@ -142,7 +178,7 @@ bool EPaperSSD1680::reset() {
     // settling time. Without it, SWRESET (and everything that follows) may
     // be sent before the chip's power-on-reset recovery is complete.
     delay(10);
-    this->command(0x12);  // SWRESET
+    this->write_bytewise_(0x12);  // SWRESET
     return true;
   }
   return false;
@@ -159,8 +195,8 @@ bool HOT EPaperSSD1680::transfer_data() {
   // logs as repeated "Process state entered in state TRANSFER_DATA" with no
   // new command in between), which this panel appears not to tolerate for
   // an in-progress RAM write. A single plane (5808 bytes) blocks for ~12ms
-  // at 4MHz hardware SPI or well under a second even bit-banged - negligible
-  // for a display that updates once every 60s.
+  // at 4MHz hardware SPI - negligible for a display that updates once every
+  // 60s.
   if (this->writing_red_plane_) {
     // Start of a fresh refresh: write the custom waveform LUT once (never
     // relies on the OTP default - see the class comment in the header),
@@ -168,19 +204,28 @@ bool HOT EPaperSSD1680::transfer_data() {
     // plane, since our buffer has no separate grey-plane information.
     this->write_waveform_lut_();
     this->set_ram_area_();
-    this->command(0x26);
+    this->write_bytewise_(0x26);
   } else {
     this->set_ram_area_();
-    this->command(0x24);  // write B/W RAM
+    this->write_bytewise_(0x24);  // write B/W RAM
   }
+#ifdef USE_RP2
+  this->raw_spi_setup_();
+  gpio_put(this->dc_pin_num_, 1);
+  gpio_put(this->cs_pin_num_, 0);
+  // split_buffer may be non-contiguous: read element-by-element.
+  for (size_t i = 0; i < this->buffer_length_; i++) {
+    uint8_t b = this->buffer_[i];
+    spi_write_blocking(spi0, &b, 1);
+  }
+  gpio_put(this->cs_pin_num_, 1);
+#else
   this->dc_pin_->digital_write(true);
   this->enable();
-  // split_buffer may be non-contiguous: read element-by-element. Sent one
-  // byte at a time (not write_array()'s bulk path) - see write_bytewise_()'s
-  // comment in the header for why.
   for (size_t i = 0; i < this->buffer_length_; i++)
     this->write_byte(this->buffer_[i]);
   this->disable();
+#endif
   if (this->writing_red_plane_) {
     this->writing_red_plane_ = false;
     return false;  // resume next loop() call to write the B/W plane
@@ -197,7 +242,7 @@ void EPaperSSD1680::refresh_screen(bool partial) {
     // BTST (booster soft start, no data) + Display Update Control 2 mode
     // 0xC7 (use the LUT just written via write_waveform_lut_(), not OTP) +
     // Activate. Matches Pimoroni's update() exactly.
-    this->command(0x0C);  // BTST
+    this->write_bytewise_(0x0C);  // BTST
     this->send_update_(0xC7);
   }
 }
@@ -208,7 +253,17 @@ void EPaperSSD1680::power_off() {
   // updates are enabled.
   if (this->is_using_partial_update_()) {
     this->set_ram_area_();
-    this->command(0x26);
+    this->write_bytewise_(0x26);
+#ifdef USE_RP2
+    this->raw_spi_setup_();
+    gpio_put(this->dc_pin_num_, 1);
+    gpio_put(this->cs_pin_num_, 0);
+    for (size_t i = 0; i < this->buffer_length_; i++) {
+      uint8_t b = this->buffer_[i];
+      spi_write_blocking(spi0, &b, 1);
+    }
+    gpio_put(this->cs_pin_num_, 1);
+#else
     this->dc_pin_->digital_write(true);
     this->enable();
     size_t i = 0;
@@ -219,6 +274,7 @@ void EPaperSSD1680::power_off() {
       i += n;
     }
     this->disable();
+#endif
   }
 
   this->send_update_(0x83);  // power off

@@ -57,21 +57,32 @@ class EPaperSSD1680 : public EPaperBase {
   void write_waveform_lut_();
   // 0x22 (display update control) with `mode`, then 0x20 (master activation).
   void send_update_(uint8_t mode);
-  // Command + data, sent one byte at a time instead of via cmd_data()'s bulk
-  // write_array() path. See the class comment for why: live testing on real
-  // hardware proved every command byte in our sequence is correct (manually
-  // replaying just the trigger bytes via a known-good path caused a genuine
-  // ~2s physical refresh), yet ESPHome's driver produced no visible refresh
-  // at all with an identical byte sequence sent via write_array() for any
-  // multi-byte payload. This narrows the fault to that specific transfer
-  // path (suspected Arduino-Pico RP2 SPI library issue with write-only
-  // multi-byte transfers, `transfer(ptr, nullptr, length)`) rather than
-  // anything about the command sequence itself.
-  void write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length);
+  // Command + data. On RP2, sends via the raw Pico SDK (spi_write_blocking()
+  // + gpio_put()) instead of ESPHome's spi::SPIDevice - see raw_spi_setup_().
+  // Both ESPHome's hardware and bit-banged software SPI backends were tested
+  // extensively (bulk vs. byte-wise, CS held continuously vs. chunked, MISO
+  // pin conflicts ruled out, cross-component/WiFi interference ruled out,
+  // reproducibility confirmed deterministic - see the repo's CLAUDE.md) and
+  // every one produced the identical no-refresh symptom, while a byte-for-
+  // byte identical sequence sent via the RP2 SDK directly (bypassing
+  // Arduino-Pico entirely, matching Pimoroni's own driver) produced a
+  // genuine ~2s physical refresh. This bypasses ESPHome's SPI abstraction
+  // layer entirely to test whether that layer itself is the remaining
+  // variable.
+  void write_bytewise_(uint8_t command, const uint8_t *ptr = nullptr, size_t length = 0);
   // Block on BUSY (with a timeout) at points where Pimoroni's reference
   // driver waits mid-sequence but our FSM's per-state waiting doesn't cover.
   // See the call sites in the .cpp for why.
   void busy_wait_(const char *reason);
+
+#ifdef USE_RP2
+  // One-time setup of the RP2 hardware SPI0 peripheral via the raw Pico SDK,
+  // and caching of the CS/DC pins' raw GPIO numbers - see write_bytewise_().
+  void raw_spi_setup_();
+  bool raw_spi_ready_{false};
+  int cs_pin_num_{-1};
+  int dc_pin_num_{-1};
+#endif
 
   // Partial-refresh waveform LUT, supplied by the model (panel-specific).
   const uint8_t *lut_partial_;
