@@ -68,6 +68,10 @@ class EPaperSSD1680 : public EPaperBase {
   // multi-byte transfers, `transfer(ptr, nullptr, length)`) rather than
   // anything about the command sequence itself.
   void write_bytewise_(uint8_t command, const uint8_t *ptr, size_t length);
+  // Block on BUSY (with a timeout) at points where Pimoroni's reference
+  // driver waits mid-sequence but our FSM's per-state waiting doesn't cover.
+  // See the call sites in the .cpp for why.
+  void busy_wait_(const char *reason);
 
   // Partial-refresh waveform LUT, supplied by the model (panel-specific).
   const uint8_t *lut_partial_;

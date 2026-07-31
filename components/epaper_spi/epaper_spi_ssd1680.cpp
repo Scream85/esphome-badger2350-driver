@@ -94,6 +94,27 @@ static const uint8_t WAVEFORM_LUT[153] = {
     // clang-format on
 };
 
+void EPaperSSD1680::busy_wait_(const char *reason) {
+  // Pimoroni's own driver blocks on BUSY after write_luts() and again between
+  // setting the DUC2 mode and issuing ADUS (modules/c/ssd1680/ssd1680.cpp,
+  // write_luts()'s trailing busy_wait() and update()'s busy_wait() right
+  // before command(ADUS)). Our port dropped both waits - this FSM only waits
+  // for idle on entry to specific states (SHOULD_WAIT), and neither of those
+  // sits between the sub-steps inside transfer_data()/send_update_() where
+  // Pimoroni's driver blocks. If the chip needs that settling time before it
+  // will latch the next command, everything we send after it (RAM writes,
+  // ADUS trigger) can be accepted-but-ignored: correct bytes on the wire,
+  // no error, no real refresh. Cheap to test, so block here instead of
+  // threading this into the non-blocking FSM as new states.
+  uint32_t start = millis();
+  while (!this->is_idle_()) {
+    if (millis() - start > 2000) {
+      ESP_LOGW(TAG, "busy_wait_(%s) timed out after 2000ms", reason);
+      break;
+    }
+  }
+}
+
 void EPaperSSD1680::write_waveform_lut_() {
   this->write_bytewise_(0x32, WAVEFORM_LUT, sizeof(WAVEFORM_LUT));  // WLR
   const uint8_t eopt[1] = {0x22};
@@ -104,10 +125,12 @@ void EPaperSSD1680::write_waveform_lut_() {
   this->write_bytewise_(0x04, sdvc, 3);  // SDVC
   const uint8_t wvcom[1] = {0x28};
   this->write_bytewise_(0x2C, wvcom, 1);  // WVCOM
+  this->busy_wait_("write_waveform_lut_");
 }
 
 void EPaperSSD1680::send_update_(uint8_t mode) {
   this->write_bytewise_(0x22, &mode, 1);
+  this->busy_wait_("send_update_ mode->activate");
   this->command(0x20);
 }
 
