@@ -149,40 +149,38 @@ bool EPaperSSD1680::reset() {
 }
 
 bool HOT EPaperSSD1680::transfer_data() {
-  const uint32_t start_time = millis();
-  const size_t frame = this->buffer_length_;
-
-  if (this->current_data_index_ == 0) {
-    if (this->writing_red_plane_) {
-      // Start of a fresh refresh: write the custom waveform LUT once (never
-      // relies on the OTP default - see the class comment in the header),
-      // then the "red"/grey-plane RAM (0x26). Same 1bpp data as the B/W
-      // plane, since our buffer has no separate grey-plane information.
-      this->write_waveform_lut_();
-      this->set_ram_area_();
-      this->command(0x26);
-    } else {
-      this->set_ram_area_();
-      this->command(0x24);  // write B/W RAM
-    }
+  // Write one COMPLETE plane per call, in a single unbroken CS-low session -
+  // deliberately not chunked across MAX_TRANSFER_TIME/loop() yields like the
+  // base class's default transfer_data() does. Confirmed live (raw SPI
+  // replay via mpremote, bypassing both ESPHome and this chunked path
+  // entirely) that a genuine multi-second refresh only happens when the RAM
+  // data is written in one continuous CS-low transaction; ESPHome's normal
+  // chunked transfer toggles CS high/low every ~10ms mid-write (visible in
+  // logs as repeated "Process state entered in state TRANSFER_DATA" with no
+  // new command in between), which this panel appears not to tolerate for
+  // an in-progress RAM write. A single plane (5808 bytes) blocks for ~12ms
+  // at 4MHz hardware SPI or well under a second even bit-banged - negligible
+  // for a display that updates once every 60s.
+  if (this->writing_red_plane_) {
+    // Start of a fresh refresh: write the custom waveform LUT once (never
+    // relies on the OTP default - see the class comment in the header),
+    // then the "red"/grey-plane RAM (0x26). Same 1bpp data as the B/W
+    // plane, since our buffer has no separate grey-plane information.
+    this->write_waveform_lut_();
+    this->set_ram_area_();
+    this->command(0x26);
+  } else {
+    this->set_ram_area_();
+    this->command(0x24);  // write B/W RAM
   }
   this->dc_pin_->digital_write(true);
   this->enable();
-  while (this->current_data_index_ < frame) {
-    const size_t n = std::min(MAX_TRANSFER_SIZE, frame - this->current_data_index_);
-    // split_buffer may be non-contiguous: read element-by-element. Sent one
-    // byte at a time (not write_array()'s bulk path) - see write_bytewise_()'s
-    // comment in the header for why.
-    for (size_t k = 0; k < n; k++)
-      this->write_byte(this->buffer_[this->current_data_index_ + k]);
-    this->current_data_index_ += n;
-    if (millis() - start_time > MAX_TRANSFER_TIME) {
-      this->disable();
-      return false;
-    }
-  }
+  // split_buffer may be non-contiguous: read element-by-element. Sent one
+  // byte at a time (not write_array()'s bulk path) - see write_bytewise_()'s
+  // comment in the header for why.
+  for (size_t i = 0; i < this->buffer_length_; i++)
+    this->write_byte(this->buffer_[i]);
   this->disable();
-  this->current_data_index_ = 0;
   if (this->writing_red_plane_) {
     this->writing_red_plane_ = false;
     return false;  // resume next loop() call to write the B/W plane
