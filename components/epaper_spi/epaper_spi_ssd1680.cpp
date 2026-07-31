@@ -5,6 +5,7 @@
 #include "esphome/components/spi/spi.h"
 
 #ifdef USE_RP2
+#include <hardware/clocks.h>
 #include <hardware/gpio.h>
 #include <hardware/spi.h>
 #endif
@@ -34,6 +35,11 @@ void EPaperSSD1680::raw_spi_setup_() {
   gpio_set_function(SSD1680_MOSI_PIN, GPIO_FUNC_SPI);
   this->cs_pin_num_ = esphome::spi::Utility::get_pin_no(this->cs_);
   this->dc_pin_num_ = esphome::spi::Utility::get_pin_no(this->dc_pin_);
+  // Diagnostic: compare against MicroPython's machine.freq() on the same
+  // board (measured 150000000) to check for a system-clock mismatch between
+  // the Arduino-Pico and MicroPython runtimes as a possible explanation for
+  // why byte-for-byte identical SDK calls behave differently between them.
+  ESP_LOGI(TAG, "clk_sys=%u Hz, clk_peri=%u Hz", (unsigned) clock_get_hz(clk_sys), (unsigned) clock_get_hz(clk_peri));
   this->raw_spi_ready_ = true;
 }
 #endif
